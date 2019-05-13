@@ -16,6 +16,14 @@ class ViewController: UICollectionViewController, UIImagePickerControllerDelegat
         super.viewDidLoad()
         
         navigationItem.leftBarButtonItem = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(addNewPerson))
+        
+        let defaults = UserDefaults.standard
+        
+        if let savedPeople = defaults.object(forKey: "people") as? Data {
+            if let decodedPeople = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(savedPeople) as? [Person] {
+                people = decodedPeople!
+            }
+        }
     }
     
     @objc func addNewPerson() {
@@ -27,7 +35,7 @@ class ViewController: UICollectionViewController, UIImagePickerControllerDelegat
     
     func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
         guard let image = info[.editedImage] as? UIImage else { return }
-        
+    
         let imageName = UUID().uuidString
         let imagePath = getDocumentsDirectory().appendingPathComponent(imageName)
         
@@ -37,14 +45,37 @@ class ViewController: UICollectionViewController, UIImagePickerControllerDelegat
         
         let person = Person(name: "Unknown", image: imageName)
         people.append(person)
+        save()
         collectionView.reloadData()
     
         dismiss(animated: true)
+        
+    }
+    
+    func openCamera() {
+        if UIImagePickerController.isSourceTypeAvailable(UIImagePickerController.SourceType.camera) {
+            let imagePicker = UIImagePickerController()
+            imagePicker.delegate = self
+            imagePicker.sourceType = UIImagePickerController.SourceType.camera
+            imagePicker.allowsEditing = false
+            self.present(imagePicker, animated: true, completion: nil)
+        }else{
+            let alert  = UIAlertController(title: "Warning", message: "You don't have camera", preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "OK", style: .default, handler: nil))
+            self.present(alert, animated: true, completion: nil)
+        }
     }
     
     func getDocumentsDirectory() -> URL {
         let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
         return paths[0]
+    }
+    
+    func save() {
+        if let savedData = try? NSKeyedArchiver.archivedData(withRootObject: people, requiringSecureCoding: false) {
+            let defaults = UserDefaults.standard
+            defaults.set(savedData, forKey: "people")
+        }
     }
 
     override func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
@@ -70,6 +101,7 @@ class ViewController: UICollectionViewController, UIImagePickerControllerDelegat
         
         return cell
     }
+    
     override func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
         let person = people[indexPath.item]
         
